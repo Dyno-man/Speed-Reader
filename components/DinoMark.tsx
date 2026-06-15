@@ -1,0 +1,11 @@
+export function DinoMark() {
+  return (
+    <svg className="brand-mark" viewBox="0 0 32 32" shapeRendering="crispEdges" aria-hidden="true">
+      <path fill="#111827" d="M8 6h16v2h2v4h2v8h-4v4h-6v-2h-4v4h-4v-6H8v-4H6v-8h2z" />
+      <path fill="#0f766e" d="M10 8h14v2h2v4h2v4h-6v2h-6v-2h-4v6h-2v-6H8v-4H6v-4h4z" />
+      <path fill="#111827" d="M26 16h-6v2h6zM10 12H8v2h2z" />
+      <path fill="#ffffff" d="M20 10h2v2h-2z" />
+      <path fill="#115e59" d="M14 20h4v2h-4z" />
+    </svg>
+  );
+}
