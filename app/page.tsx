@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { DinoMark } from "@/components/DinoMark";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { extractFileText, fileSizeWarning } from "@/lib/importers";
 import { formatDuration, tokenize } from "@/lib/rsvp";
 import { clearLastBookId, deleteBook, getBooks, loadSettings, saveBook, saveSettings, setLastBookId, updateBookProgress } from "@/lib/storage";
-import type { Book, SourceType, ThemeMode } from "@/lib/types";
+import type { Book, SourceType } from "@/lib/types";
 
 function makeBook(title: string, textContent: string, source: SourceType): Book {
   const now = new Date().toISOString();
@@ -123,13 +124,7 @@ export default function HomePage() {
             <span>SpeedReader</span>
           </Link>
           <div className="control-cluster">
-            <label className="theme-toggle">
-              Theme
-              <select value={settings.theme} onChange={(event) => setSettings((current) => ({ ...current, theme: event.target.value as ThemeMode }))}>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </label>
+            <ThemeToggle theme={settings.theme} onChange={(theme) => setSettings((current) => ({ ...current, theme }))} />
             <Link href="/reading" className="button" onClick={() => books[0] && openBook(books[0].id)}>
               Resume Reading
             </Link>

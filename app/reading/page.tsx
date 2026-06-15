@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DinoMark } from "@/components/DinoMark";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { addGlossaryWord, lookupWord } from "@/lib/dictionary";
 import {
   displayTimeMs,
@@ -13,7 +14,7 @@ import {
   tokenize,
 } from "@/lib/rsvp";
 import { getBook, getLastBookId, loadSettings, saveSettings, setLastBookId, updateBookProgress } from "@/lib/storage";
-import type { Book, FontSize, ReaderSettings, ReadingMode, ThemeMode } from "@/lib/types";
+import type { Book, FontSize, ReaderSettings, ReadingMode } from "@/lib/types";
 
 function OrpWord({ word }: { word: string }) {
   const parts = splitAtOrp(word || " ");
@@ -148,6 +149,7 @@ export default function ReadingPage() {
       <header className="reader-bar">
         <Link href="/" className="brand"><DinoMark /><span>{book.title}</span></Link>
         <div className="control-cluster">
+          <ThemeToggle theme={settings.theme} onChange={(theme) => updateSetting("theme", theme)} />
           <span className="reader-stat">{settings.speed} wpm</span>
           {settings.autoAdjust && <span className="muted small">effective {currentEffectiveSpeed} wpm</span>}
           <span className="muted small">{index.toLocaleString()} / {words.length.toLocaleString()} words</span>
@@ -226,13 +228,6 @@ export default function ReadingPage() {
             <select value={settings.autoAdjust ? "yes" : "no"} onChange={(event) => updateSetting("autoAdjust", event.target.value === "yes")}>
               <option value="no">Off</option>
               <option value="yes">On</option>
-            </select>
-          </label>
-          <label>
-            Theme
-            <select value={settings.theme} onChange={(event) => updateSetting("theme", event.target.value as ThemeMode)}>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
             </select>
           </label>
           <label>
