@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DinoMark } from "@/components/DinoMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { extractFileText, fileSizeWarning } from "@/lib/importers";
-import { formatDuration, tokenize } from "@/lib/rsvp";
+import { defaultSettings, formatDuration, tokenize } from "@/lib/rsvp";
 import { clearLastBookId, deleteBook, getBooks, loadSettings, saveBook, saveSettings, setLastBookId, updateBookProgress } from "@/lib/storage";
 import type { Book, SourceType } from "@/lib/types";
 
@@ -34,7 +34,8 @@ export default function HomePage() {
   const [dragging, setDragging] = useState(false);
   const [renamingId, setRenamingId] = useState("");
   const [renameTitle, setRenameTitle] = useState("");
-  const [settings, setSettings] = useState(() => loadSettings());
+  const [settings, setSettings] = useState(defaultSettings);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   async function refreshBooks() {
     setBooks(await getBooks());
@@ -42,12 +43,17 @@ export default function HomePage() {
 
   useEffect(() => {
     refreshBooks().catch((err) => setError(err instanceof Error ? err.message : "Failed to load library."));
+    const loadedSettings = loadSettings();
+    setSettings(loadedSettings);
+    document.documentElement.dataset.theme = loadedSettings.theme;
+    setSettingsLoaded(true);
   }, []);
 
   useEffect(() => {
+    if (!settingsLoaded) return;
     document.documentElement.dataset.theme = settings.theme;
     saveSettings(settings);
-  }, [settings]);
+  }, [settings, settingsLoaded]);
 
   const filteredBooks = useMemo(() => {
     const q = query.trim().toLowerCase();

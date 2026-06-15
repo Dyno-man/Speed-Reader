@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { addGlossaryWord, lookupWord } from "@/lib/dictionary";
 import {
   displayTimeMs,
+  defaultSettings,
   effectiveSpeed,
   estimateRemainingMs,
   formatDuration,
@@ -29,7 +30,8 @@ export default function ReadingPage() {
   const [book, setBook] = useState<Book | null>(null);
   const [words, setWords] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
-  const [settings, setSettings] = useState<ReaderSettings>(() => loadSettings());
+  const [settings, setSettings] = useState<ReaderSettings>(defaultSettings);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null);
   const [sessionMs, setSessionMs] = useState(0);
@@ -38,6 +40,11 @@ export default function ReadingPage() {
   const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    const loadedSettings = loadSettings();
+    setSettings(loadedSettings);
+    document.documentElement.dataset.theme = loadedSettings.theme;
+    setSettingsLoaded(true);
+
     const id = getLastBookId();
     if (!id) return;
     getBook(id).then((loaded) => {
@@ -51,9 +58,10 @@ export default function ReadingPage() {
   }, []);
 
   useEffect(() => {
+    if (!settingsLoaded) return;
     document.documentElement.dataset.theme = settings.theme;
     saveSettings(settings);
-  }, [settings]);
+  }, [settings, settingsLoaded]);
 
   useEffect(() => {
     const onVisibilityChange = () => {
