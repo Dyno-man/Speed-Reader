@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "SpeedReader",
   description: "Local-first RSVP speed reader",
   icons: {
-    icon: "/favicon.svg",
+    icon: "/dino-logo.png",
   },
 };
 
