@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { DinoMark } from "@/components/DinoMark";
+import { HeroReaderDemo } from "@/components/HeroReaderDemo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { extractFileText, fileSizeWarning } from "@/lib/importers";
 import { defaultSettings, formatDuration, tokenize } from "@/lib/rsvp";
@@ -141,25 +142,20 @@ export default function HomePage() {
           <div>
             <p className="eyebrow">Local-first RSVP reader</p>
             <h1 className="hero-title">
-              Read faster.
+              Lock your eyes to the pivot.
               <br />
-              <span className="hero-accent">Keep everything on your device.</span>
+              <span className="hero-accent">Let the words come to you.</span>
             </h1>
             <p className="hero-sub">
-              Paste text, drop files, and read with a clean ORP-focused speed reader. No accounts, no server library, no cloud sync.
+              Paste text, set a pace, and read through a guided word stream. Your books, progress, and glossary stay in this browser.
             </p>
             <div className="hero-actions">
-              <a className="button" href="#import">Import Text</a>
-              <a className="button secondary" href="#library">Open Library</a>
+              <a className="button" href="#import">Import text</a>
+              <a className="button secondary" href="#library">Open library</a>
             </div>
           </div>
           <div className="hero-card">
-            <div className="sample-reader">
-              <div>
-                <div className="sample-word">fo<span className="orp">c</span>us</div>
-                <div className="sample-meta"><span>300 wpm</span><span>ORP highlighted</span></div>
-              </div>
-            </div>
+            <HeroReaderDemo />
           </div>
         </section>
 
@@ -168,7 +164,7 @@ export default function HomePage() {
             <div>
               <p className="eyebrow">Import</p>
               <h2>Add reading material</h2>
-              <p>Paste text or drop `.txt`, `.pdf`, or `.epub` files. Big files stay local but may hit browser limits.</p>
+              <p>Paste text or drop a local file. Large books stay on-device, but the browser may ask for patience.</p>
             </div>
             <label>
               Title
@@ -194,7 +190,7 @@ export default function HomePage() {
               }}
             >
               <p><strong>Drop file here</strong></p>
-              <p className="small">Supports `.txt`, text-based `.pdf`, and `.epub`.</p>
+              <p className="file-chips"><span>.txt</span><span>text PDF</span><span>.epub</span></p>
               <input type="file" accept=".txt,.pdf,.epub" onChange={(event) => event.target.files?.[0] && importFile(event.target.files[0])} />
             </div>
             {status && <p className="success">{status}</p>}
@@ -204,7 +200,7 @@ export default function HomePage() {
           <div className="panel" id="library">
             <div>
               <p className="eyebrow">Library</p>
-              <h2>Local books</h2>
+              <h2>Local shelf</h2>
             </div>
             <div className="library-tools">
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search titles" />
