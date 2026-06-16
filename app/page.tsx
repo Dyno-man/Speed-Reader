@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { DinoMark } from "@/components/DinoMark";
 import { HeroReaderDemo } from "@/components/HeroReaderDemo";
@@ -8,9 +9,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { extractFileText, fileSizeWarning } from "@/lib/importers";
 import { defaultSettings, formatDuration, tokenize } from "@/lib/rsvp";
 import { clearLastBookId, deleteBook, getBooks, loadSettings, saveBook, saveSettings, setLastBookId, updateBookProgress } from "@/lib/storage";
-import type { Book, SourceType } from "@/lib/types";
+import type { Book, BookFigure, BookSection, SourceType } from "@/lib/types";
 
-function makeBook(title: string, textContent: string, source: SourceType): Book {
+function makeBook(title: string, textContent: string, source: SourceType, metadata: { sections?: BookSection[]; figures?: BookFigure[] } = {}): Book {
   const now = new Date().toISOString();
   return {
     id: crypto.randomUUID(),
@@ -19,12 +20,15 @@ function makeBook(title: string, textContent: string, source: SourceType): Book 
     textContent,
     totalWords: tokenize(textContent).length,
     currentWord: 0,
+    sections: metadata.sections,
+    figures: metadata.figures,
     createdAt: now,
     updatedAt: now,
   };
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const [books, setBooks] = useState<Book[]>([]);
   const [pasteText, setPasteText] = useState("");
   const [title, setTitle] = useState("");
@@ -35,6 +39,7 @@ export default function HomePage() {
   const [dragging, setDragging] = useState(false);
   const [renamingId, setRenamingId] = useState("");
   const [renameTitle, setRenameTitle] = useState("");
+  const [startDrafts, setStartDrafts] = useState<Record<string, { sectionIndex: number; sectionPercent: number }>>({});
   const [settings, setSettings] = useState(defaultSettings);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
@@ -87,7 +92,7 @@ export default function HomePage() {
     try {
       const extracted = await extractFileText(file);
       if (tokenize(extracted.text).length === 0) throw new Error("No readable text found. Scanned PDFs need OCR, not supported yet.");
-      const book = makeBook(extracted.title, extracted.text, extracted.source);
+      const book = makeBook(extracted.title, extracted.text, extracted.source, { sections: extracted.sections, figures: extracted.figures });
       await saveBook(book);
       setLastBookId(book.id);
       setStatus(`Imported ${book.title}.`);
@@ -120,6 +125,33 @@ export default function HomePage() {
 
   function openBook(id: string) {
     setLastBookId(id);
+  }
+
+  function updateStartDraft(bookId: string, update: Partial<{ sectionIndex: number; sectionPercent: number }>) {
+    setStartDrafts((current) => ({
+      ...current,
+      [bookId]: {
+        sectionIndex: current[bookId]?.sectionIndex ?? 0,
+        sectionPercent: current[bookId]?.sectionPercent ?? 0,
+        ...update,
+      },
+    }));
+  }
+
+  function startWordForBook(book: Book) {
+    const sections = book.sections ?? [];
+    if (sections.length === 0) return 0;
+    const draft = startDrafts[book.id] ?? { sectionIndex: 0, sectionPercent: 0 };
+    const section = sections[Math.min(draft.sectionIndex, sections.length - 1)];
+    const sectionWords = Math.max(0, section.endWord - section.startWord - 1);
+    return section.startWord + Math.round(sectionWords * (draft.sectionPercent / 100));
+  }
+
+  async function openBookAtStart(book: Book) {
+    const currentWord = startWordForBook(book);
+    await updateBookProgress(book.id, currentWord);
+    setLastBookId(book.id);
+    router.push("/reading");
   }
 
   return (
@@ -216,6 +248,10 @@ export default function HomePage() {
               {filteredBooks.length === 0 && <p>No local books yet.</p>}
               {filteredBooks.map((book) => {
                 const percent = book.totalWords ? Math.round((book.currentWord / book.totalWords) * 100) : 0;
+                const sections = book.sections ?? [];
+                const draft = startDrafts[book.id] ?? { sectionIndex: 0, sectionPercent: 0 };
+                const selectedSection = sections[Math.min(draft.sectionIndex, Math.max(0, sections.length - 1))];
+                const startWord = startWordForBook(book);
                 return (
                   <article className="book-card" key={book.id}>
                     <header>
@@ -233,8 +269,37 @@ export default function HomePage() {
                       <strong>{percent}%</strong>
                     </header>
                     <div className="progress-track"><div className="progress-fill" style={{ width: `${percent}%` }} /></div>
+                    {sections.length > 0 && (
+                      <div className="start-picker">
+                        <label>
+                          EPUB start section
+                          <select
+                            value={draft.sectionIndex}
+                            onChange={(event) => updateStartDraft(book.id, { sectionIndex: Number(event.target.value), sectionPercent: 0 })}
+                          >
+                            {sections.map((section, sectionIndex) => (
+                              <option value={sectionIndex} key={`${section.startWord}-${section.title}`}>{section.title}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          Within section
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={draft.sectionPercent}
+                            onChange={(event) => updateStartDraft(book.id, { sectionPercent: Number(event.target.value) })}
+                          />
+                        </label>
+                        <p className="small muted">
+                          Start near word {startWord.toLocaleString()}{selectedSection ? ` in ${selectedSection.title}` : ""}.
+                        </p>
+                      </div>
+                    )}
                     <div className="button-row">
                       <Link href="/reading" className="button" onClick={() => openBook(book.id)}>Resume</Link>
+                      {sections.length > 0 && <button className="secondary" onClick={() => openBookAtStart(book)}>Start Here</button>}
                       <button className="ghost" onClick={() => { setRenamingId(book.id); setRenameTitle(book.title); }}>Rename</button>
                       <button className="ghost" onClick={() => restartBook(book)}>Restart</button>
                       <button className="danger-button" onClick={() => removeBook(book)}>Delete</button>

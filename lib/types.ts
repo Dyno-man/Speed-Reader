@@ -3,6 +3,20 @@ export type ReadingMode = "1" | "2";
 export type FontSize = "small" | "medium" | "large" | "xl";
 export type ThemeMode = "light" | "dark";
 
+export interface BookSection {
+  title: string;
+  startWord: number;
+  endWord: number;
+}
+
+export interface BookFigure {
+  wordIndex: number;
+  label: string;
+  text: string;
+  imageSrc?: string;
+  imageAlt?: string;
+}
+
 export interface Book {
   id: string;
   title: string;
@@ -11,6 +25,8 @@ export interface Book {
   textContent: string;
   totalWords: number;
   currentWord: number;
+  sections?: BookSection[];
+  figures?: BookFigure[];
   createdAt: string;
   updatedAt: string;
 }
@@ -22,6 +38,7 @@ export interface ReaderSettings {
   theme: ThemeMode;
   autoAdjust: boolean;
   skipWords: number;
+  showFigureNotes: boolean;
 }
 
 export interface GlossaryEntry {

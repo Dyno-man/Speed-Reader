@@ -15,7 +15,7 @@ import {
   tokenize,
 } from "@/lib/rsvp";
 import { getBook, getLastBookId, loadSettings, saveSettings, setLastBookId, updateBookProgress } from "@/lib/storage";
-import type { Book, FontSize, ReaderSettings, ReadingMode } from "@/lib/types";
+import type { Book, BookFigure, FontSize, ReaderSettings, ReadingMode } from "@/lib/types";
 
 function OrpWord({ word }: { word: string }) {
   const parts = splitAtOrp(word || " ");
@@ -25,6 +25,8 @@ function OrpWord({ word }: { word: string }) {
     </span>
   );
 }
+
+const speedPresets = [150, 250, 300, 400, 500, 600];
 
 export default function ReadingPage() {
   const [book, setBook] = useState<Book | null>(null);
@@ -37,6 +39,9 @@ export default function ReadingPage() {
   const [sessionMs, setSessionMs] = useState(0);
   const [lookupDefinition, setLookupDefinition] = useState("");
   const [lookupStatus, setLookupStatus] = useState("");
+  const [activeFigure, setActiveFigure] = useState<BookFigure | null>(null);
+  const [fullscreenFigure, setFullscreenFigure] = useState<BookFigure | null>(null);
+  const [acknowledgedFigures, setAcknowledgedFigures] = useState<Set<string>>(new Set());
   const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -72,19 +77,40 @@ export default function ReadingPage() {
   }, []);
 
   useEffect(() => {
+    if (!fullscreenFigure) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFullscreenFigure(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [fullscreenFigure]);
+
+  useEffect(() => {
     if (!playing || words.length === 0) return;
+    const step = settings.readingMode === "2" ? 2 : 1;
+    if (settings.showFigureNotes && book?.figures?.length) {
+      const nextFigure = book.figures.find((figure) => {
+        const key = figureKey(figure);
+        return figure.wordIndex >= index && figure.wordIndex < index + step && !acknowledgedFigures.has(key);
+      });
+      if (nextFigure) {
+        setActiveFigure(nextFigure);
+        setPlaying(false);
+        setIndex(nextFigure.wordIndex);
+        return;
+      }
+    }
     const currentWord = words[index] ?? "";
     const speed = effectiveSpeed(settings.speed, words, index, settings.autoAdjust);
     const timeout = window.setTimeout(() => {
       setIndex((current) => {
-        const step = settings.readingMode === "2" ? 2 : 1;
         const next = Math.min(words.length, current + step);
         if (next >= words.length) setPlaying(false);
         return next;
       });
     }, displayTimeMs(currentWord, speed, settings.readingMode));
     return () => window.clearTimeout(timeout);
-  }, [playing, words, index, settings]);
+  }, [playing, words, index, settings, book, acknowledgedFigures]);
 
   useEffect(() => {
     if (!book) return;
@@ -109,6 +135,7 @@ export default function ReadingPage() {
   const percent = words.length ? Math.min(100, Math.round((index / words.length) * 100)) : 0;
   const currentEffectiveSpeed = effectiveSpeed(settings.speed, words, index, settings.autoAdjust);
   const remaining = estimateRemainingMs(words, index, currentEffectiveSpeed);
+  const isCustomSpeed = !speedPresets.includes(settings.speed);
 
   function updateSetting<K extends keyof ReaderSettings>(key: K, value: ReaderSettings[K]) {
     setSettings((current) => ({ ...current, [key]: value }));
@@ -116,6 +143,13 @@ export default function ReadingPage() {
 
   function skip(amount: number) {
     setIndex((current) => Math.max(0, Math.min(words.length - 1, current + amount)));
+  }
+
+  function closeFigureNote() {
+    if (!activeFigure) return;
+    setAcknowledgedFigures((current) => new Set(current).add(figureKey(activeFigure)));
+    setFullscreenFigure(null);
+    setActiveFigure(null);
   }
 
   async function lookUpCurrentWord() {
@@ -187,6 +221,37 @@ export default function ReadingPage() {
         </aside>
       )}
 
+      {activeFigure && (
+        <aside className="figure-card reader-panel">
+          <p className="eyebrow">{activeFigure.label}</p>
+          <h3>Figure note</h3>
+          {activeFigure.imageSrc && (
+            <img className="figure-image" src={activeFigure.imageSrc} alt={activeFigure.imageAlt || activeFigure.text} />
+          )}
+          <p>{activeFigure.text}</p>
+          {activeFigure.imageAlt && activeFigure.imageAlt !== activeFigure.text && <p className="small muted"><strong>Alt text:</strong> {activeFigure.imageAlt}</p>}
+          <div className="button-row">
+            {activeFigure.imageSrc && <button className="ghost" onClick={() => setFullscreenFigure(activeFigure)}>Fullscreen</button>}
+            <button onClick={closeFigureNote}>Close</button>
+            <button className="secondary" onClick={() => { closeFigureNote(); setPlaying(true); }}>Close + Resume</button>
+          </div>
+        </aside>
+      )}
+
+      {fullscreenFigure?.imageSrc && (
+        <div className="figure-fullscreen" role="dialog" aria-modal="true" aria-label="Figure fullscreen" onClick={() => setFullscreenFigure(null)}>
+          <div className="figure-fullscreen-panel" onClick={(event) => event.stopPropagation()}>
+            <button className="figure-fullscreen-close ghost" onClick={() => setFullscreenFigure(null)}>Close</button>
+            <img className="figure-fullscreen-image" src={fullscreenFigure.imageSrc} alt={fullscreenFigure.imageAlt || fullscreenFigure.text} />
+            <div className="figure-fullscreen-copy">
+              <p className="eyebrow">{fullscreenFigure.label}</p>
+              <p>{fullscreenFigure.text}</p>
+              {fullscreenFigure.imageAlt && fullscreenFigure.imageAlt !== fullscreenFigure.text && <p className="small muted"><strong>Alt text:</strong> {fullscreenFigure.imageAlt}</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="reader-bar reader-bottom">
         <div className="progress-track"><div className="progress-fill" style={{ width: `${percent}%` }} /></div>
         <div className="control-cluster">
@@ -204,7 +269,8 @@ export default function ReadingPage() {
           <label>
             Preset
             <select value={settings.speed} onChange={(event) => updateSetting("speed", Number(event.target.value))}>
-              {[150, 250, 300, 400, 500, 600].map((speed) => <option value={speed} key={speed}>{speed} wpm</option>)}
+              {isCustomSpeed && <option value={settings.speed}>Custom: {settings.speed} wpm</option>}
+              {speedPresets.map((speed) => <option value={speed} key={speed}>{speed} wpm</option>)}
             </select>
           </label>
           <label>
@@ -239,6 +305,13 @@ export default function ReadingPage() {
             </select>
           </label>
           <label>
+            Figure notes
+            <select value={settings.showFigureNotes ? "yes" : "no"} onChange={(event) => { updateSetting("showFigureNotes", event.target.value === "yes"); if (event.target.value === "no") setActiveFigure(null); }}>
+              <option value="yes">On</option>
+              <option value="no">Off</option>
+            </select>
+          </label>
+          <label>
             Session
             <input value={formatDuration(sessionMs)} readOnly />
           </label>
@@ -246,4 +319,8 @@ export default function ReadingPage() {
       </footer>
     </main>
   );
+}
+
+function figureKey(figure: BookFigure) {
+  return `${figure.wordIndex}:${figure.label}:${figure.text}`;
 }

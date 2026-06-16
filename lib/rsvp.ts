@@ -7,6 +7,7 @@ export const defaultSettings: ReaderSettings = {
   theme: "light",
   autoAdjust: false,
   skipWords: 25,
+  showFigureNotes: true,
 };
 
 export function normalizeText(text: string) {
